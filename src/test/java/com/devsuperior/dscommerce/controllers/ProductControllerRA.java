@@ -19,7 +19,7 @@ public class ProductControllerRA {
 
     private String clientUsername, clientPassword, adminUsername, adminPassword;
     private String clientToken, adminToken, invalidToken;
-    private Long existingProductId, nonExistingProductId;
+    private Long existingProductId, nonExistingProductId, dependentProductId;
     private String productName;
 
     private Map<String, Object> postProductInstance;
@@ -243,6 +243,70 @@ public class ProductControllerRA {
                 .accept(ContentType.JSON)
                 .when()
                 .post("/products")
+                .then()
+                .statusCode(401);
+    }
+
+    @Test
+    public void deleteShouldReturnNoContentWhenAdminLoggedAndProductIdExists() {
+        existingProductId = 2L;
+
+        given()
+                .header("Authorization", "Bearer " + adminToken)
+                .when()
+                .delete("/products/{id}", existingProductId)
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
+    public void deleteShouldReturnNotFoundWhenAdminLoggedAndProductIdDoesNotExist() {
+        nonExistingProductId = 100L;
+
+        given()
+                .header("Authorization", "Bearer " + adminToken)
+                .when()
+                .delete("/products/{id}", nonExistingProductId)
+                .then()
+                .statusCode(404)
+                .body("status", is(404))
+                .body("error", equalTo("Recurso não encontrado"))
+                .body("path", equalTo("/products/100"));;
+    }
+
+    @Test
+    public void deleteShouldReturnBadRequestWhenAdminLoggedAndDependentProductId() {
+        dependentProductId = 1L;
+
+        given()
+                .header("Authorization", "Bearer " + adminToken)
+                .when()
+                .delete("/products/{id}", dependentProductId)
+                .then()
+                .statusCode(400)
+                .body("status", is(400))
+                .body("error", equalTo("Falha de integridade referencial"))
+                .body("path", equalTo("/products/1"));
+    }
+
+    @Test
+    public void deleteShouldReturnForbiddenWhenClientLogged() {
+        existingProductId = 2L;
+
+        given()
+                .header("Authorization", "Bearer " + clientToken)
+                .delete("/products/{id}", existingProductId)
+                .then()
+                .statusCode(403);
+    }
+
+    @Test
+    public void deleteShouldReturnUnauthorizedWhenInvalidToken() {
+        existingProductId = 2L;
+
+        given()
+                .header("Authorization", "Bearer " + invalidToken)
+                .delete("/products/{id}", existingProductId)
                 .then()
                 .statusCode(401);
     }
